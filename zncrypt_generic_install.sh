@@ -88,12 +88,12 @@ function get_sys_information {
     if [ -f /etc/redhat-release ]; then # RedHat/CentOS/Oracle
         OS="RedHat"
         cat /etc/issue | grep 5\.. &>$INSTALL_LOG
-        if [ $? -e 0 ]; then 
+        if [ $? -eq 0 ]; then 
             notice "Red Hat 5 variant detected..."
             VER=5
         fi
-        cat /etc/issue | grep 5\.. &>$INSTALL_LOG
-        if [ $? -e 0 ]; then
+        cat /etc/issue | grep 6\.. &>$INSTALL_LOG
+        if [ $? -eq 0 ]; then
             notice "Red Hat 6 variant detected..."
             VER=6
         fi
@@ -113,8 +113,12 @@ function get_sys_information {
     return 0
 }
 
+# TODO - Add secure password input (ie writing to an encrypted file)
 # func collect_password
-# Collects a password from stdin used for zNcrypt registration
+# Collects a password from stdin, used for zNcrypt registration
+# 
+# Warning! Collecting passwords through script is not very secure. Please be
+# careful when utilizing this function.
 function collect_password {
     stty -echo
     read -p "zNcrypt password (16-32 characters): " PASSWORD1; echo
@@ -194,7 +198,7 @@ function rhel_setup {
     fi
     
     if [ -f /etc/oracle-release ]; then
-        ls /etc/yum.repos.d/public-repo* &>$INSTALL_LOG
+        ls /etc/yum.repos.d/public-yum* &>$INSTALL_LOG
         if [ $? -ne 0 ]; then
             notice "No public repos for Oracle Linux detected. Adding..."
             if [ $VER -eq 5 ]; then
@@ -245,7 +249,7 @@ function rhel_setup {
 
         notice "Installing haveged (for secure entropy generation)..."
         yum -y install haveged &>$INSTALL_LOG
-        service haveged start
+        service haveged start &>$INSTALL_LOG
 
         notice "Disabling selinux..."
         setenforce 0 &>$INSTALL_LOG
@@ -280,16 +284,18 @@ function register_zncrypt {
         sed -i".old" '/EXTRA_CFLAGS += -DREDHAT5/d' /usr/src/zncryptfs-3.2.3/Makefile
     fi
     
+    notice "Building zNcrypt kernel module..."
     zncrypt-module-setup &>$INSTALL_LOG
     if [ $? -ne 0 ]; then
         exception "Could not compile zncrypt kernel module. Please check kernel headers and devel."
     fi
     
     if [ -f /etc/cron.hourly/zncrypt-ping ]; then
-        notice "Removing zncrypt-ping cron..."
+        notice "Removing zncrypt-ping cron job..."
         rm -f /etc/cron.hourly/zncrypt-ping
     fi
     
+    # TODO - Add this switch as command-line argument (ie -p for prompt, etc)
     #collect_password
     create_password
     
@@ -400,7 +406,7 @@ function add_acls {
 echo ""
 echo "     ____"                                
 echo "    / ___| __ _ __________ _ _ __   __ _ "
-echo "   | |  _ / _\` |_  /_  / _\` | \'_ \ / _\`| "
+echo "   | |  _ / _\` |_  /_  / _\` | \'_ \/ _\` | "
 echo "   | |_| | (_| |/ / / / (_| | | | | (_| |    "
 echo "    \____|\__,_/___/___\__,_|_| |_|\__, |    "
 echo "                                   |___/  " 
