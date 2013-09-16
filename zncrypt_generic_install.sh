@@ -15,6 +15,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# TODO - CLI arguments:
+#   [-p] prompt for password
+#   [-d] prompt for encrypted directories
+#   [-u] use 'proposed' (potentially unstable) zNcrypt installation
+#   [-e] encrypt and add ACL rules
+
 #################################################
 # GLOBAL VARIABLES
 #################################################
@@ -51,8 +57,10 @@ INSTALL_LOG=install.log
 # func exception
 # Outputs a simple error message then exits with return code of 1
 function exception {
+    cat install.log
     echo ""
     echo "!! EXCEPTION - $*"
+    echo "!! Please check $INSTALL_LOG (output above) for more details."
     echo ""
     exit 1
 }
@@ -142,7 +150,7 @@ function collect_password {
 # Creates a randomized password used for zNcrypt registration
 function create_password {
     notice "Creating master password at $PASSWORD_FILE..."
-    tr -dc A-Za-z0-9_ < /dev/urandom | head -c 30 | xargs >> $PASSWORD_FILE
+    tr -dc A-Za-z0-9_ < /dev/random | head -c 30 | xargs >> $PASSWORD_FILE
     PASSWORD=$(cat $PASSWORD_FILE)
 }
 
@@ -155,7 +163,9 @@ function ubuntu_setup {
     cat /etc/apt/sources.list | grep http://archive.gazzang.com &>$INSTALL_LOG
     if [ $? -ne 0 ]; then
         echo "deb http://archive.gazzang.com/$(echo $OS | tr '[A-Z]' '[a-z]')/stable $CODENAME main" >> /etc/apt/sources.list
-        wget -O - http://archive.gazzang.com/gpg_gazzang.asc | sudo apt-key add -
+        wget http://archive.gazzang.com/gpg_gazzang.asc &>$INSTALL_LOG
+        sudo apt-key add gpg_gazzang.asc &>$INSTALL_LOG
+        rm -f gpg_gazzang.asc &>$INSTALL_LOG
     fi
 
     apt-get -qq update &>$INSTALL_LOG
@@ -176,9 +186,16 @@ function ubuntu_setup {
 function rhel_setup {
     notice "Configure RHEL/CentOS..."
     
-    # Ensure make and perl are installed
-    yum -y install make perl &>$INSTALL_LOG
+    which make &>/dev/null
+    if [ $? -ne 0 ]; then
+        yum install make -y &>$INSTALL_LOG
+    fi
     
+    which perl &>/dev/null
+    if [ $? -ne 0 ]; then
+        yum install perl -y &>$INSTALL_LOG
+    fi
+        
     # Check for/install epel repositories
     ls -la | grep epel &>$INSTALL_LOG
     if [ $? -ne 0 ]; then
@@ -212,8 +229,8 @@ function rhel_setup {
     # configure repository
     if [ ! -f /etc/yum.repos.d/gazzang.repo ]; then 
         echo "[gazzang]" >> /etc/yum.repos.d/gazzang.repo
-        echo "name=RHEL \$releasever - gazzang.com - base" >> /etc/yum.repos.d/gazzang.repo
-        echo "baseurl=http://archive.gazzang.com/redhat/stable/\$releasever" >> /etc/yum.repos.d/gazzang.repo
+        echo "name=RHEL $VER - gazzang.com - base" >> /etc/yum.repos.d/gazzang.repo
+        echo "baseurl=http://archive.gazzang.com/redhat/stable/$VER" >> /etc/yum.repos.d/gazzang.repo
         echo "enabled=1" >> /etc/yum.repos.d/gazzang.repo
         echo "gpgcheck=1" >> /etc/yum.repos.d/gazzang.repo
         echo "gpgkey=http://archive.gazzang.com/gpg_gazzang.asc" >> /etc/yum.repos.d/gazzang.repo
@@ -229,12 +246,12 @@ function rhel_setup {
 
         # install kernel headers and devel
         notice "Installing kernel-devel..."
-        yum -y install kernel-devel-$(uname -r) &>$INSTALL_LOG
+        yum install kernel-devel-$(uname -r) -y &>$INSTALL_LOG
         if [ $? -ne 0 ]; then
             notice "WARNING! Could not install kernel-devel. zNcrypt might not build correctly later."
         fi
         notice "Installing kernel headers..."
-        yum -y install kernel-headers-$(uname -r) &>$INSTALL_LOG
+        yum install kernel-headers-$(uname -r) -y &>$INSTALL_LOG
         if [ $? -ne 0 ]; then
             notice "WARNING! Could not install kernel-headers. zNcrypt might not build correctly later."
         fi
@@ -248,8 +265,11 @@ function rhel_setup {
         fi
 
         notice "Installing haveged (for secure entropy generation)..."
-        yum -y install haveged &>$INSTALL_LOG
+        yum install haveged -y &>$INSTALL_LOG
         service haveged start &>$INSTALL_LOG
+        if [ $? -ne 0 ]; then
+            notice "WARNING! Haveged could not be started. Key generation might take a while..."
+        fi
 
         notice "Disabling selinux..."
         setenforce 0 &>$INSTALL_LOG
@@ -409,8 +429,7 @@ echo "    / ___| __ _ __________ _ _ __   __ _ "
 echo "   | |  _ / _\` |_  /_  / _\` | \'_ \/ _\` | "
 echo "   | |_| | (_| |/ / / / (_| | | | | (_| |    "
 echo "    \____|\__,_/___/___\__,_|_| |_|\__, |    "
-echo "                                   |___/  " 
-echo "                          Gazzang, Inc.   "
+echo "                     Gazzang, Inc. |___/  " 
 echo ""
 
 # Check for root user
@@ -441,4 +460,5 @@ prepare_zncrypt
 
 unset -v PASSWORD
 
+notice "Successfully completed installation!"
 exit 0
