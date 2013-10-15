@@ -1,6 +1,18 @@
+# Class zncrypt::params
+#
+# The zncrypt configuration settings.
+#
+# Parameters:
+#
+# Actions:
+#
+# Requires:
+#
+# Sample Usage:
+#
 class zncrypt::params {
-    $keyserver          = ""
-    $activation_email   = ""
+    $keyserver
+    $activation_email
     $passphrase         = ""
     $passphrase2        = ""
     $zncrypt_prefix     = "/var/lib/zncrypt"
