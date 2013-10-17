@@ -8,10 +8,10 @@ class zncrypt::repo::redhat {
     }
     yumrepo { "gazzang":
         descr       => 'Gazzang',
-        baseurl     => 'http://archive.gazzang.com/redhat/stable/$releasever',
+        baseurl     => "$zncrypt::params::gazzang_baseurl/redhat/stable/$releasever",
         enabled     => 1,
         gpgcheck    => 1,
-        gpgkey      => "http://archive.gazzang.com/gpg_gazzang.asc",
+        gpgkey      => "$zncrypt::params::gazzang_gpgkey",
     }
     package { ["kernel-devel","kernel-headers","dkms","zncrypt"]:
         ensure  => present,

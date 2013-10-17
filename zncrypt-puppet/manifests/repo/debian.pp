@@ -2,12 +2,12 @@ class zncrypt::repo::debian {
     include apt
     apt::key { "gazzang":
         ensure => present,
-        key_source => 'http://archive.gazzang.com/gpg_gazzang.asc',
+        key_source => "$zncrypt::params::gazzang_gpgkey",
     }
     apt::source { "gazzang":
-        location    => "http://archive.gazzang.com/ubuntu/stable",
+        location    => "$zncrypt::params::gazzang_baseurl/ubuntu/stable",
         release     => $lsbdistcodenamestable,
-        key_source  => 'http://archive.gazzang.com/gpg_gazzang.asc',
+        key_source  => "$zncrypt::params::gazzang_gpgkey",
         include_src => false,
     }
     # Ensure apt is setup before running apt-get update
