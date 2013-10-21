@@ -19,7 +19,7 @@ class zncrypt::params {
     $zncrypt_mount      = "${zncrypt_mount}/mnt"
     $zncrypt_storage    = "${zncrypt_mount}/storage"
     $gazzang_baseurl    = "http://archive.gazzang.com"
-    $gazzang_gpgkey     = "$gazzang_gpgkey/gpg_gazzang.asc"
+    $gazzang_gpgkey     = "$gazzang_baseurl/gpg_gazzang.asc"
 
     case $::osfamily {
         'RedHat':   { class { "zncrypt::repo::redhat": } }
