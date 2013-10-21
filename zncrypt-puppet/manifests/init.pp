@@ -1,8 +1,8 @@
 class zncrypt (
-    $keyserver          = $zncrypt::params::keyserver,
-    $activation_email   = $zncrypt::params::activation_email,
-    $passphrase         = $zncrypt::params::passphrase,
-    $passphrase2        = $zncrypt::params::passphrase2,
+    $keyserver,
+    $activation_email,
+    $passphrase,
+    $passphrase2,
     $zncrypt_prefix     = $zncrypt::params::zncrypt_prefix,
     $zncrypt_mount      = $zncrypt::params::zncrypt_mount,
     $zncrypt_storage    = $zncrypt::params::zncrypt_storage
