@@ -30,7 +30,7 @@
 ####
 
 # Display extra messages during script execution
-debug="true"
+debug="false"
 
 # string to identify which repo to install from, acceptable values are: stable|proposed|testing|unstable
 # please note that credentials are required to use the unstable/testing repos (leave blank otherwise)
@@ -53,7 +53,7 @@ declare os_codename
 declare package_manager
 
 # log files
-log_file="zncrypt-installation-$(date +%Y%m%d_%H%M%S).log"
+log_file="/tmp/zncrypt-installation-$(date +%Y%m%d_%H%M%S).log"
 
 ####
 ## Utilities (pretty printing, error reporting, etc.)
@@ -117,7 +117,8 @@ function check_prereqs {
             print_warning "Make is not installed. Attempting to install."
             execute "yum install make -y"
             if [[ $? -ne 0 ]]; then
-                print_warning "Could not install make. This may cause issues when compiling the kernel module."
+                print_error "Could not install make. This may cause issues when compiling the kernel module."
+                exit 1
             fi
         fi
         execute "rpm -q perl"
@@ -125,7 +126,8 @@ function check_prereqs {
             print_warning "Perl is not installed. Attempting to install."
             execute "yum install perl -y"
             if [[ $? -ne 0 ]]; then
-                print_warning "Could not install perl. This may cause issues when compiling the kernel module."
+                print_error "Could not install perl. This may cause issues when compiling the kernel module."
+                exit 1
             fi
         fi
         execute "rpm -q kernel-devel-$(uname -r)"
@@ -152,11 +154,11 @@ function check_prereqs {
                 print_warning "Could not install 'lsof'. This may cause issues later."
             fi
         fi
-        execute "cat /etc/yum.conf | grep \"exclude=kernel\""
-        if [[ $? -eq 0 ]]; then
-            print_error "Kernel updates have been disabled in your yum configuration. Please enable, then restart installation."
-            exit 1
-        fi
+        #execute "cat /etc/yum.conf | grep \"#.*exclude=kernel\""
+        #if [[ $? -eq 0 ]]; then
+        #    print_error "Kernel updates have been disabled in your yum configuration. Please enable, then restart installation."
+        #    exit 1
+        #fi
         ;;
         apt )
         print_info "Updating APT package listings..."
@@ -202,11 +204,11 @@ function get_system_parameters {
         else
             os="redhat"
         fi
-        execute "cat /etc/issue | grep 5\.."
-        if [[ $? -eq 0 ]]; then 
+        execute "cat /etc/redhat-release | grep 5\.."
+        if [[ $? -eq 0 ]]; then
             os_version=5
         fi
-        execute "cat /etc/issue | grep 6\.."
+        execute "cat /etc/redhat-release | grep 6\.."
         if [ $? -eq 0 ]; then
             os_version=6
         fi
@@ -333,7 +335,7 @@ function check_if_installed {
     print_info "Checking to see if zNcrypt is installed..."
     case "$package_manager" in
         yum )
-        execute "rpm -q zncrypt"
+        execute "rpm -qa | grep zncrypt"
         return $?
         ;;
         apt )
@@ -418,6 +420,7 @@ function check_kernel_module {
 }
 
 function stop_selinux {
+    which sestatus &>/dev/null || return
     status="$(sestatus | awk '/status/ { print $3 }')"
     if [[ "$status" = "enabled" ]]; then
         print_info "Stopping current selinux process..."

@@ -12,8 +12,8 @@
 #
 class zncrypt::params {
     $zncrypt_prefix     = "/var/lib/zncrypt"
-    $zncrypt_mount      = "${zncrypt_mount}/mnt"
-    $zncrypt_storage    = "${zncrypt_mount}/storage"
+    $zncrypt_mount      = "${zncrypt_prefix}/mnt"
+    $zncrypt_storage    = "${zncrypt_prefix}/storage"
     $gazzang_baseurl    = "http://archive.gazzang.com"
     $gazzang_gpgkey     = "$gazzang_baseurl/gpg_gazzang.asc"
 
