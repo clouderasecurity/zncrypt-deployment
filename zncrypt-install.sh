@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Author:: Ross McDonald (<ross.mcdonald@gazzang.com>)
-# Copyright 2013, Gazzang, Inc.
+# Copyright 2014, Gazzang, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -60,14 +60,16 @@ log_file="/tmp/zncrypt-installation-$(date +%Y%m%d_%H%M%S).log"
 ####
 
 function print_banner {
-    color="34m"
-    company_color="32m"
-    echo -e "\x1b[$color         __                      _   
- ____ /\\ \\ \\___ _ __ _   _ _ __ | |_ 
-|_  //  \\/ / __| '__| | | | '_ \\| __|
- / // /\\  / (__| |  | |_| | |_) | |_ 
-/___\\_\\ \\/ \\___|_|   \\__, | .__/ \\__|
-    \x1b[$company_color Gazzang, Inc.  \x1b[0m \x1b[$color|___/|_|\x1b[0m"
+    color="\x1b[34m"
+    company_color="\x1b[32m"
+    echo -e "\x1b[$color     _   _                       _     _____           _        _ _ 
+    | \\ | |                     | |   |_   _|         | |      | | |
+ ___|  \\| | ___ _ __ _   _ _ __ | |_    | |  _ __  ___| |_ __ _| | |
+|_  / . \` |/ __| '__| | | | '_ \\| __|   | | | '_ \\/ __| __/ _\` | | |
+ / /| |\\  | (__| |  | |_| | |_) | |_   _| |_| | | \\__ \\ || (_| | | |
+/___|_| \\_|\\___|_|   \\__, | .__/ \\__| |_____|_| |_|___/\\__\\__,_|_|_|
+                      __/ | |                                       
+                     |___/|_| $company_color Gazzang, Inc.\x1b[0m"
     echo -e "\n * Logging enabled, check '\x1b[36m$log_file\x1b[0m' for command output.\n"
 }
 
@@ -350,7 +352,7 @@ function check_if_installed {
 
 function install_amazon {
     print_info "Switching to Amazon Linux configuration..."
-    execute "sudo yum remove cryptsetup* -y"
+    execute "yum remove cryptsetup* -y"
     execute "yum install keyutils -y"
     execute "wget ftp://ftp.muug.mb.ca/mirror/centos/6.5/os/x86_64/Packages/cryptsetup-luks-1.2.0-7.el6.x86_64.rpm"
     execute "wget ftp://ftp.pbone.net/mirror/ftp.scientificlinux.org/linux/scientific/6.1/x86_64/updates/security/ecryptfs-utils-82-6.el6_1.3.x86_64.rpm"

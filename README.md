@@ -1,13 +1,13 @@
-zncrypt-deployment
-==================
+zNcrypt Deployment Scripts
+==========================
 
 Scripts built to enhance Gazzang zNcrypt deployments.
 
-QuickStart
-----------
+Install
+-------
 
-Need it right now? Just run:
+Simply copy the following command into a Linux terminal to get started:
 ```
-curl -sL https://raw2.github.com/gazzang/zncrypt-deployment/master/zncrypt-install.sh | sudo bash
+curl -sL https://raw.github.com/gazzang/zncrypt-deployment/master/zncrypt-install.sh | sudo bash
 ```
 
