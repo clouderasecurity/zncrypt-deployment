@@ -62,14 +62,7 @@ log_file="/tmp/zncrypt-installation-$(date +%Y%m%d_%H%M%S).log"
 function print_banner {
     color="\x1b[34m"
     company_color="\x1b[32m"
-    echo -e "\x1b[$color     _   _                       _     _____           _        _ _ 
-    | \\ | |                     | |   |_   _|         | |      | | |
- ___|  \\| | ___ _ __ _   _ _ __ | |_    | |  _ __  ___| |_ __ _| | |
-|_  / . \` |/ __| '__| | | | '_ \\| __|   | | | '_ \\/ __| __/ _\` | | |
- / /| |\\  | (__| |  | |_| | |_) | |_   _| |_| | | \\__ \\ || (_| | | |
-/___|_| \\_|\\___|_|   \\__, | .__/ \\__| |_____|_| |_|___/\\__\\__,_|_|_|
-                      __/ | |                                       
-                     |___/|_| $company_color Gazzang, Inc.\x1b[0m"
+    echo -e "\n zNcrypt 3 Installation Script,$company_color Gazzang, Inc.\x1b[0m"
     echo -e "\n * Logging enabled, check '\x1b[36m$log_file\x1b[0m' for command output.\n"
 }
 
