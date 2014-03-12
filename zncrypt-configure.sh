@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# zNcrypt automatic configuration script. This assumes zNcrypt is already installed.
+# zNcrypt interactive configuration script. This assumes zNcrypt is already installed.
 #
 # Author:: Ross McDonald (<ross.mcdonald@gazzang.com>)
 # Copyright 2014, Gazzang, Inc.
@@ -187,13 +187,13 @@ function addRules {
         printf "\nYou used the category name '$category' before. Would you like to use the same name? [yes]\n"
         read response < /dev/tty
         test -z $response && response="yes"
-        test ${response:0:1} = "n" || test ${response:0:1} = "N" || break
-        unset response
-        
-        printf "\nWhat category name would you like to set for this rule? [encrypted]\n"
-        read category < /dev/tty
-        test -z $category && category="encrypted"
+        if [["${response:0:1}" = "n"] -o ["${response:0:1}" = "N"]]; then
+            printf "\nWhat category name would you like to set for this rule? [encrypted]\n"
+            read category < /dev/tty
+            test -z $category && category="encrypted"
+        fi
     fi
+    test -z $category && err "A valid category name needs to be specified."
     
     acl_command="zncrypt acl --add -r \"ALLOW @$category * $binary\""
     printf "__________________________________________________\n"
@@ -210,7 +210,7 @@ function addRules {
 function printConclusion {
     printf "\nCompleted!\n"
     printf "We have randomly generated a password for you at '$password_file'. \nThis can (and should) be changed by running the following command:\n"
-    printf "\n\t\$ zncrypt key --change\n"
+    printf "\n\t\$ cat $password_file | zncrypt key --change\n"
     printf "\nWhich will prompt you for your own master password.\n"
 }
 
