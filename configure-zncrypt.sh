@@ -20,12 +20,24 @@
 password_file="/root/zncrypt-password"
 
 function err {
-    printf "\nError: $@\n"
+    printf "\n\x1b[31mError:\x1b[0m $@\n"
     exit 1
 }
 
+function printBanner {
+    color="\x1b[34m"
+    company_color="\x1b[32m"
+    echo -e "$color                          _                                             
+ ____ _  __ _ _ _  _ _ __| |_                                           
+|_ / ' \\/ _| '_| || | '_ \\  _|      __ _                    _           
+/__|_||_\\__|_|  \\\\_, | .__/\\__|_ _  / _(_)__ _ _  _ _ _ __ _| |_ ___ _ _ 
+                |__/|_/ _/ _ \\ ' \\|  _| / _\` | || | '_/ _\` |  _/ _ \\ '_|
+                      \\__\\___/_||_|_| |_\\__, |\\_,_|_| \\__,_|\\__\\___/_|  
+                                        |___/\x1b[0m Powered by$company_color Gazzang, Inc.\x1b[0m"
+}
+
 function createRandomPassword {
-    test ! -f $password_file || return
+    test -f $password_file && return
     printf "Creating a password file at '$password_file'. You'll want to change this once configuration is completed.\n"
     tr -dc A-Za-z0-9_ < /dev/urandom | head -c 30 | tee $password_file &>/dev/null
     chown root:root $password_file
@@ -42,16 +54,16 @@ function verifyConnectivity {
 
 function displayzNcryptPartitions {
     printf "\n__________________________________________________"
-    printf "\nNote! You currently have the following mount points available:\n\n"
+    printf "\nYou currently have the following mount points available:\n\n"
     cat /etc/zncrypt/ztab | awk '/^\// { print $1 }'
     printf "__________________________________________________\n"
 }
 
 function registerClient {
-    test ! -f /etc/zncrypt/ztrustee/clientname || return
+    test -f /etc/zncrypt/ztrustee/clientname && printf "\nzNcrypt is already registered. Skipping.\n" && return
     printf "\nWhat zTrustee Server would you like to use? [ztdemo.gazzang.net]\n"
     read keyserver < /dev/tty
-    test ! -z $keyserver || keyserver="ztdemo.gazzang.net"
+    test -z $keyserver && keyserver="ztdemo.gazzang.net"
     verifyConnectivity $keyserver
 
     printf "\n\nWhat organization would you like to register against? []\n"
@@ -76,7 +88,7 @@ function registerClient {
 }
 
 function prepareClient {
-    printf "\nDo you need to prepare any drives/directories for encryption? [no]\n"
+    printf "Do you need to prepare any drives/directories for encryption? [no]\n"
     read response < /dev/tty
     test "${response:0:1}" = "y" || test "${response:0:1}" = "Y" || return
     unset response
@@ -108,7 +120,7 @@ function prepareClient {
 }
 
 function encryptData {
-    printf "\nDo you want to encrypt any data? [no]\n"
+    printf "Do you want to encrypt any data? [no]\n"
     read response < /dev/tty
     test "${response:0:1}" = "y" || test "${response:0:1}" = "Y" || return
     unset response
@@ -155,7 +167,7 @@ function encryptData {
 }
 
 function addRules {
-    printf "\nDo you want to set any ACL rules? [no]\n"
+    printf "Do you want to set any ACL rules? [no]\n"
     read response < /dev/tty
     test "${response:0:1}" = "y" || test "${response:0:1}" = "Y" || return
     unset response
@@ -195,7 +207,15 @@ function addRules {
     fi
 }
 
+function printConclusion {
+    printf "\nCompleted!\n"
+    printf "We have randomly generated a password for you at '$password_file'. \nThis can (and should) be changed by running the following command:\n"
+    printf "\n\t\$ zncrypt key --change\n"
+    printf "\nWhich will prompt you for your own master password.\n"
+}
+
 function main {
+    printBanner
     test $UID -eq 0 || err "Please run with administrative privileges."
     which zncrypt &>/dev/null || err "Please install zNcrypt before continuing."
     createRandomPassword
@@ -203,6 +223,7 @@ function main {
     prepareClient
     encryptData
     addRules
+    printConclusion
 }
 
 main
