@@ -62,20 +62,27 @@ log_file="/tmp/zncrypt-installation-$(date +%Y%m%d_%H%M%S).log"
 function print_banner {
     color="\x1b[34m"
     company_color="\x1b[32m"
-    echo -e "\n zNcrypt 3 Installation Script,$company_color Gazzang, Inc.\x1b[0m"
-    echo -e "\n * Logging enabled, check '\x1b[36m$log_file\x1b[0m' for command output.\n"
+    echo -e "$color                          _                  
+ ____ _  __ _ _ _  _ _ __| |_  
+|_ / ' \\/ _| '_| || | '_ \\  _|               
+/__|_||_\\__|_|_ \\_, | .__/\\__|   _ _         
+             (_)|__/|_|| |_ __ _| | |___ _ _ 
+             | | ' \\(_-<  _/ _\` | | / -_) '_|
+             |_|_||_/__/\\__\\__,_|_|_\\___|_|\x1b[0m Powered by$company_color Gazzang, Inc.\x1b[0m
+"
+    echo -e "* Logging enabled, check '\x1b[36m$log_file\x1b[0m' for command output.\n"
 }
 
 function print_error {
-    printf "\x1b[31m ERROR -> \x1b[0m$@\n"
+    printf "\x1b[31mError: \x1b[0m$@\n"
 }
 
 function print_warning {
-    printf "\x1b[33m WARNING -> \x1b[0m$@\n"
+    printf "\x1b[33mWarning: \x1b[0m$@\n"
 }
 
 function print_info {
-    printf "\x1b[32m INFO -> \x1b[0m$@\n"
+    printf "\x1b[32mInfo: \x1b[0m$@\n"
 }
 
 function execute {
