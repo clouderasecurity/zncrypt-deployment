@@ -109,25 +109,23 @@ function check_prereqs {
         yum )
         execute "rpm -q make"
         if [[ $? -ne 0 ]]; then
-            print_warning "Make is not installed. Attempting to install."
+            print_info "Make is not installed. Attempting to install."
             execute "yum install make -y"
             if [[ $? -ne 0 ]]; then
-                print_error "Could not install make. This may cause issues when compiling the kernel module."
-                exit 1
+                print_warning "Could not install make. This may cause issues when compiling the kernel module."
             fi
         fi
         execute "rpm -q perl"
         if [[ $? -ne 0 ]]; then
-            print_warning "Perl is not installed. Attempting to install."
+            print_info "Perl is not installed. Attempting to install."
             execute "yum install perl -y"
             if [[ $? -ne 0 ]]; then
-                print_error "Could not install perl. This may cause issues when compiling the kernel module."
-                exit 1
+                print_warning "Could not install perl. This may cause issues when compiling the kernel module."
             fi
         fi
         execute "rpm -q kernel-devel-$(uname -r)"
         if [[ $? -ne 0 ]]; then
-            print_warning "Kernel-devel for your running kernel is not installed. Attempting to install."
+            print_info "Kernel-devel for your running kernel is not installed. Attempting to install."
             execute "yum install kernel-devel-$(uname -r) -y"
             if [[ $? -ne 0 ]]; then
                 print_warning "Could not install kernel-devel. This may cause issues when compiling the kernel module."
@@ -135,7 +133,7 @@ function check_prereqs {
         fi
         execute "rpm -q kernel-headers-$(uname -r)"
         if [[ $? -ne 0 ]]; then
-            print_warning "Kernel headers for your running kernel is not installed. Attempting to install."
+            print_info "Kernel headers for your running kernel is not installed. Attempting to install."
             execute "yum install kernel-headers-$(uname -r) -y"
             if [[ $? -ne 0 ]]; then
                 print_warning "Could not install kernel headers. This may cause issues when compiling the kernel module."
@@ -143,7 +141,7 @@ function check_prereqs {
         fi
         execute "rpm -q lsof"
         if [[ $? -ne 0 ]]; then
-            print_warning "The application 'lsof' is not installed. Attempting to install."
+            print_info "The application 'lsof' is not installed. Attempting to install."
             execute "yum install lsof -y"
             if [[ $? -ne 0 ]]; then
                 print_warning "Could not install 'lsof'. This may cause issues later."
