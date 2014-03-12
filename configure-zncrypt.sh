@@ -27,6 +27,13 @@ function verifyConnectivity {
     curl https://$@/?a=fingerprint || err "Couldn't connect to keyserver. Check connectivity to '$@'."
 }
 
+function displayzNcryptPartitions {
+    printf "\n__________________________________________________"
+    printf "\nNote! You currently have the following mount points available:\n\n"
+    cat /etc/zncrypt/ztab | awk '/^\// { print $1 }'
+    printf "__________________________________________________\n"
+}
+
 function registerClient {
     test ! -f /etc/zncrypt/ztrustee/clientname || return
     printf "\nWhat zTrustee Server would you like to use? [ztdemo.gazzang.net]\n"
@@ -51,7 +58,7 @@ function registerClient {
     
     printf "$(cat $password_file)\n$(cat $password_file)" | $register_command
     if [[ $? -ne 0 ]]; then
-        err "Could not register with keyserver."
+        err "Could not register with keyserver. Please check command output for more information."
     fi
 }
 
@@ -63,24 +70,25 @@ function prepareClient {
     
     printf "\nWhere would you like to store the encrypted data? [/var/lib/zncrypt/.private]\n"
     read storage
-    test ! -z $storage || storage="/var/lib/zncrypt/.private"
-    test ! -b $storage || err "Sorry, block-level encryption is not support by this script (yet)."
+    test -z $storage && storage="/var/lib/zncrypt/.private"
+    test -L $storage && storage="$(ls $storage | xargs readlink -f)" && printf "*You specified a symbolic link. Setting new encryption target to '$storage'.\n"
+    test -b $storage && err "Sorry, block-level encryption is not support by this script (yet)."
     test -d $storage || mkdir -p $storage
     
     printf "\nAnd where would you like to mount the encrypted data? [/var/lib/zncrypt/encrypted]\n"
     read mount
-    test ! -z $mount || mount="/var/lib/zncrypt/encrypted"
+    test -z $mount && mount="/var/lib/zncrypt/encrypted"
     test -d $mount || mkdir -p $mount
     
     prepare_command="zncrypt-prepare $storage $mount"
-    printf "__________________________________________________\n"
-    printf "\nNote!\nTo manually prepare more drives, you can use a command similar to:\n"
+    printf "\n__________________________________________________"
+    printf "\nNote! This is the command we will be using to prepare the partition:\n"
     printf "\n\$ $prepare_command\n"
     printf "__________________________________________________\n"
     
     cat $password_file | eval "$prepare_command"
     if [[ $? -ne 0 ]]; then
-        err "Could not prepare directory."
+        err "Could not prepare directory. Please check command output for more information."
     fi
 }
 
@@ -92,23 +100,43 @@ function encryptData {
     
     printf "\nWhat data would you like to encrypt? This can be either a directory or just a file.\n"
     read to_encrypt
-    test ! -z $to_encrypt || err "A valid directory or file location must be specified."
-    test -L $to_encrypt || to_encrypt="$(ls $to_encrypt | xargs readlink -f)" && printf "You specified a symbolic link. Setting new encryption target to '$to_encrypt'.\n"
+    test -z $to_encrypt && err "A valid directory or file location must be specified."
+    test -L $to_encrypt && to_encrypt="$(ls $to_encrypt | xargs readlink -f)" && printf "*You specified a symbolic link. Setting new encryption target to '$to_encrypt'.\n"
     test -d $to_encrypt || test -f $to_encrypt || err "A valid directory or file location must be specified."
     
     if [[ -z $mount ]]; then
-        printf "\nWhat encrypted partition would you like to use to store your data?"
-        read response
-        test ${response:0:1} = "y" || test ${response:0:1} = "Y" || return
-        unset response
+        displayzNcryptPartitions
+        printf "\nWhat mount location would you like to use? []\n"
+        read mount
+        test -z $mount && err "A valid encrypted partition must be specified."
     else
-        printf "\nYou specified the mount location: $mount from before. Would you like to use that location to store encrypted data? [yes]"
+        printf "\nYou specified the mount location '$mount' from before. Would you like to use that location to store this encrypted data? [yes]\n"
         read response
-        test ${response:0:1} = "y" || test ${response:0:1} = "Y" || return
+        test -z $response && response="yes"
+        if [["${response:0:1}" = "n"] -o ["${response:0:1}" = "N"]]; then
+            displayzNcryptPartitions
+            printf "\nWhat mount location would you like to use? []\n"
+            read mount
+            grep "$mount" /etc/zncrypt/ztab &>/dev/null || err "Need to specify a valid encrypted mount-point."
+        fi
         unset response
     fi
-    test -z $mount || err "Need to specify encrypted partition."
-    cat $password_file | zncrypt-move encrypt @auto $to_encrypt $mount
+    test -z $mount && err "You need to specify a valid mount location."
+    
+    printf "\nWhat category name would you like to encrypt this data with? [encrypted]\n"
+    read category
+    test -z $category && category="encrypted"
+    
+    encrypt_command="zncrypt-move encrypt @$category $to_encrypt $mount"
+    printf "\n__________________________________________________"
+    printf "\nNote! This is the command we will be using to encrypt:\n"
+    printf "\n\$ $encrypt_command\n"
+    printf "__________________________________________________\n"
+    
+    cat $password_file | eval "$encrypt_command"
+    if [[ $? -ne 0 ]]; then
+        err "Could not encrypt object '$to_encrypt'. Please check command output for more information."
+    fi
 }
 
 function addRules {
@@ -119,10 +147,36 @@ function addRules {
     
     printf "\nWhat binary would you like to allow access to the encrypted data?\n"
     read binary
-    test -z $binary || err "Please specify a valid binary."
-    test -L $binary || binary="$(ls $binary | xargs readlink -f)" && printf "You specified a symbolic link. Setting new binary target to '$binary'.\n"
+    test -z $binary && err "Please specify a valid binary."
+    test -L $binary && binary="$(ls $binary | xargs readlink -f)" && printf "*You specified a symbolic link. Setting new binary target to '$binary'.\n"
     test -x $binary || err "A valid executable must be specified."
-    cat $password_file | zncrypt acl --add -r "ALLOW @auto * $binary"
+    
+    if [[ -z $category ]]; then
+        printf "\nWhat category name would you like to set for this rule? [encrypted]\n"
+        read category
+        test -z $category && category="encrypted"
+    else
+        printf "\nYou used the category name '$category' before. Would you like to use the same name? [yes]\n"
+        read response
+        test -z $response && response="yes"
+        test ${response:0:1} = "n" || test ${response:0:1} = "N" || break
+        unset response
+        
+        printf "\nWhat category name would you like to set for this rule? [encrypted]\n"
+        read category
+        test -z $category && category="encrypted"
+    fi
+    
+    acl_command="zncrypt acl --add -r \"ALLOW @$category * $binary\""
+    printf "__________________________________________________\n"
+    printf "\nNote! This is the command we will be using to add the ACL:\n"
+    printf "\n\$ $encrypt_command\n"
+    printf "__________________________________________________\n"
+    
+    cat $password_file | eval "$acl_command"
+    if [[ $? -ne 0 ]]; then
+        err "Could not add ACL for binary '$binary'. Please check command output for more information."
+    fi
 }
 
 function main {
