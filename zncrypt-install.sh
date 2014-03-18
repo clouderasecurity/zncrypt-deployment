@@ -301,7 +301,11 @@ EOF
         fi
         ;;
         apt )
-        execute "echo \"deb http://archive.gazzang.com/ubuntu/$repo precise main\" | tee -a /etc/apt/sources.list"
+        if [[ -z $os_codename ]]; then
+            print_error "Could not determine OS codename."
+            exit 1
+        fi
+        execute "echo \"deb http://archive.gazzang.com/ubuntu/$repo $os_codename main\" | tee -a /etc/apt/sources.list"
         ;;
         * )
         print_error "Sorry, this package manager is not supported yet."

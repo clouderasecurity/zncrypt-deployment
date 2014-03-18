@@ -1,7 +1,7 @@
-zNcrypt Deployment Scripts
+zNcrypt Bash Deployment Scripts
 ==========================
 
-Scripts built to enhance Gazzang zNcrypt deployments. Currently, there are two steps involved:
+Bash scripts built to enhance Gazzang zNcrypt deployments. Currently, there are two steps involved:
 * Install zNcrypt (`zncrypt-install.sh`) - automated
 * Configure zNcrypt (`zncrypt-configure.sh`) - interactive from `/dev/tty`
 

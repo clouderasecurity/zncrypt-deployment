@@ -61,7 +61,8 @@ function displayzNcryptPartitions {
 
 function registerClient {
     test -f /etc/zncrypt/ztrustee/clientname && printf "\nzNcrypt is already registered. Skipping.\n" && return
-    printf "\nWhat zTrustee Server would you like to use? [ztdemo.gazzang.net]\n"
+    printf "\nzNcrypt is installed, but not registered."
+    printf "\nWhat zTrustee Server would you like to register against? [ztdemo.gazzang.net]\n"
     read keyserver < /dev/tty
     test -z $keyserver && keyserver="ztdemo.gazzang.net"
     verifyConnectivity $keyserver
@@ -77,8 +78,9 @@ function registerClient {
     test -z $auth || register_command="$register_command --auth=$auth"
     
     printf "__________________________________________________\n"
-    printf "\nNote!\nTo manually register more clients, you can use the following command:\n"
+    printf "\nNote! This is the command we will be using to register:\n"
     printf "\n\$ $register_command\n"
+    printf "\nPlease feel free to save this for future use."
     printf "__________________________________________________\n"
     
     printf "$(cat $password_file)\n$(cat $password_file)" | $register_command
