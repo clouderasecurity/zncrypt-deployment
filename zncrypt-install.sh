@@ -356,7 +356,7 @@ function install_amazon {
     print_info "Switching to Amazon Linux configuration..."
     execute "yum remove cryptsetup* -y"
     execute "yum install keyutils -y"
-    execute "wget ftp://ftp.muug.mb.ca/mirror/centos/6.5/os/x86_64/Packages/cryptsetup-luks-1.2.0-7.el6.x86_64.rpm"
+    execute "wget ftp://ftp.icm.edu.pl/vol/rzm4/linux-centos/6.5/os/x86_64/Packages/cryptsetup-luks-1.2.0-7.el6.x86_64.rpm"
     execute "wget ftp://ftp.pbone.net/mirror/ftp.scientificlinux.org/linux/scientific/6.1/x86_64/updates/security/ecryptfs-utils-82-6.el6_1.3.x86_64.rpm"
     execute "wget ftp://ftp.pbone.net/mirror/ftp.scientificlinux.org/linux/scientific/6rolling/x86_64/os/Packages/trousers-0.3.4-4.el6.x86_64.rpm"
     execute "wget http://mirror.centos.org/centos/6/os/x86_64/Packages/cryptsetup-luks-libs-1.2.0-7.el6.x86_64.rpm"
