@@ -80,7 +80,7 @@ function registerClient {
     printf "__________________________________________________\n"
     printf "\nNote! This is the command we will be using to register:\n"
     printf "\n\$ $register_command\n"
-    printf "\nPlease feel free to save this for future use."
+    printf "\nPlease feel free to save this for future use.\n"
     printf "__________________________________________________\n"
     
     printf "$(cat $password_file)\n$(cat $password_file)" | $register_command
@@ -189,7 +189,7 @@ function addRules {
         printf "\nYou used the category name '$category' before. Would you like to use the same name? [yes]\n"
         read response < /dev/tty
         test -z $response && response="yes"
-        if [["${response:0:1}" = "n"] -o ["${response:0:1}" = "N"]]; then
+        if [[ "${response:0:1}" = "n" ] -o [ "${response:0:1}" = "N" ]]; then
             printf "\nWhat category name would you like to set for this rule? [encrypted]\n"
             read category < /dev/tty
             test -z $category && category="encrypted"
@@ -200,7 +200,7 @@ function addRules {
     acl_command="zncrypt acl --add -r \"ALLOW @$category * $binary\""
     printf "__________________________________________________\n"
     printf "\nNote! This is the command we will be using to add the ACL:\n"
-    printf "\n\$ $encrypt_command\n"
+    printf "\n\$ $acl_command\n"
     printf "__________________________________________________\n"
     
     cat $password_file | eval "$acl_command"

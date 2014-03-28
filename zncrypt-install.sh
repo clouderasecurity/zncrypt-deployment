@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/bin/bash 
 #
-# Author:: Ross McDonald (<ross.mcdonald@gazzang.com>)
+# Author:: Ross McDonald (ross.mcdonald@gazzang.com)
 # Copyright 2014, Gazzang, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,462 +15,368 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Currently supported Linux distributions:
-#   - Ubuntu 10.04, 12.04+
-#   - Amazon Linux 2013.09x
-#   - RHEL/CentOS 5.9+, 6.x
+# Currently* supported Linux distributions for zNcrypt:
+#   - Ubuntu 12.04+
+#   - Amazon Linux 2013.09+
+#   - RHEL/CentOS 5.9+ (untested), 6.x
+#
+# Currently* supported Linux distributions for zTrustee Server:
+#   - Ubuntu 12.04
+#   - RHEL/CentOS 6.x
+#
+# * Please check zNcrypt product page for full listing of supported distros.
 
-##########################################################################
-# DO NOT MODIFY BELOW THIS LINE UNLESS YOU KNOW WHAT YOU ARE DOING
-# FOR BUGS, PLEASE NOTIFY SUPPORT@GAZZANG.COM
-##########################################################################
+printf "Starting...\n"
 
-####
-## Configuration Variables (can modify, but be careful)
-####
+#####
+# Global variables
+#####
 
-# Display extra messages during script execution
-debug="false"
-
-# string to identify which repo to install from, acceptable values are: stable|proposed|testing|unstable
-# please note that credentials are required to use the unstable/testing repos (leave blank otherwise)
-repo="stable"
-# credentials for the unstable/testing repositories
-repo_username=""
-repo_password=""
-
-####
-## Global Variables (script-use only, do not modify)
-####
-
-# string to declare operating system (ie rhel, oracle, ubuntu, debian, etc.)
-declare os
-# version only applies to rhel/centos-based systems (ie 5, 6)
-declare os_version
-# codename only applies to ubuntu-based distributions (ie precise, natty, etc.)
-declare os_codename
-# string to declare system default package manaager (ie yum, apt-get, etc.)
 declare package_manager
+declare architecture
+declare operating_system
+declare codename
+declare version
 
-# log files
-log_file="/tmp/zncrypt-installation-$(date +%Y%m%d_%H%M%S).log"
+declare repo_username
+declare repo_password
 
-####
-## Utilities (pretty printing, error reporting, etc.)
-####
+#####
+# Error handling
+#####
+
+function err {
+	printf "FATAL -- $@\n"
+	exit 1
+}
+
+#####
+# Installation helper functions
+#####
+
+# Determine which package manager the system is using. Only `apt-get` and `yum` are currently supported.
+function get_package_manager {
+	if [[ -x /usr/bin/yum ]]; then
+	        package_manager="yum"
+       	elif [[	 -x /usr/bin/apt-get ]]; then
+		package_manager="apt-get"
+	else
+		err "Could not find any valid package managers. Stopping."
+	fi
+	return 0
+}
+
+# Retrieve system architecture.
+function get_architecture {
+	architecture="$(uname -p)"
+	return 0
+}
+
+# Determine the system Linux distribution.
+function get_distribution {
+	if [[ -f /etc/lsb-release ]]; then
+		operating_system="ubuntu"
+	elif [[ -f /etc/redhat-release ]]; then
+		if [[ -f /etc/oracle-release ]]; then
+			operating_system="oracle"
+		elif [[ -f /etc/centos-release ]]; then
+			operating_system="centos"
+		else
+			operating_system="redhat"
+		fi
+	elif [[ -f /etc/system-release ]]; then
+		operating_system="amazon"
+	else
+		err "Could not reliably determine operating system. Stopping."
+	fi
+	return 0
+}
+
+# Retrieve detailed version information for the system.
+function get_version_information {
+	case "$operating_system" in
+		ubuntu )
+			codename="$(cat /etc/lsb-release | tr = \ | awk '/CODENAME/ { print $2 }')"
+			test -z $codename && err "Could not determine $operating_system codename/version. Stopping." 
+			version="$(cat /etc/lsb-release | tr = \ | awk '/DISTRIB_RELEASE/ { print $2 }')"
+			test -z $version && printf "Could not determine version information. Continuing, but this might cause issues later.\n"
+			;;
+		redhat | oracle | centos )
+			version="$(cat /etc/$operating_system-release | grep -i "\<[0-9]\.[0-9]" | tr -d [:alpha:],[=\(=],[=\)],[:blank:])"
+			test -z $version && err "Could not determine $operating_system version. Stopping." 
+			;;
+		amazon )
+			# set to 6 due to there not being a repo for amazon linux
+			version="6"
+			test -z $version && err "Could not determine $operating_system version. Stopping."
+			;;
+		* )
+			err "Invalid operating system version (get_version_information). Stopping."
+			;;
+	esac
+	return 0
+}
+
+# Determine all system settings and parameters (version, codenames, etc.).
+function set_system_parameters {
+	get_package_manager || err "Could not determine your package manager information."
+	get_architecture || err "Could not reliably determine your architecture."
+	get_distribution || err "Could not reliably determine your Linux distribution."
+	get_version_information || err "Could not reliably determine your distribution version information."
+	printf "System parameters:\n"
+	printf "\t- operating system = $(uname -s)\n"
+	printf "\t- distribution = $operating_system\n"
+	if [[ $operating_system = "ubuntu" ]]; then
+		printf "\t- codename = $codename\n"
+	fi
+	printf "\t- version = $version\n"
+	printf "\t- architecture = $architecture\n"
+	printf "\t- kernel version = $(uname -r)\n"
+	printf "\t- package manager = $package_manager\n"
+	printf "\n* If errors are encountered, please send the above information to support@gazzang.com.\n\n"
+	return 0
+}
+
+# Ensure Gazzang repositories are installed and active.
+function check_repositories {
+	build_version="stable"
+	case "$package_manager" in
+		"yum" )
+			if [[ ! -f /etc/yum.repos.d/gazzang.repo ]]; then
+				printf "Creating Gazzang repo file.\n"
+				printf "[gazzang]\nname=Gazzang - $operating_system\nbaseurl=https://archive.gazzang.com/redhat/$build_version/${version:0:1}\nenabled=1\ngpgcheck=1\ngpgkey=https://archive.gazzang.com/gpg_gazzang.asc\n" > /etc/yum.repos.d/gazzang.repo
+				curl -sO https://archive.gazzang.com/gpg_gazzang.asc && rpm --import gpg_gazzang.asc && rm -f gpg_gazzang.asc && printf "Gazzang GPG signing key imported.\n"
+			fi
+			vault_repo_url="http://vault.centos.org/$version/os/$architecture"
+			grep "$vault_repo_url" /etc/yum.repos.d/* &>/dev/null
+			if [[ $? -ne 0 ]] && [[ $operating_system = "centos" ]]; then
+				printf "Adding temporary repo for previous releases of CentOS.\n"
+				printf "\n[C6.4-base]\nname=CentOS-6.4 - Base\nbaseurl=$vault_repo_url\ngpgcheck=1\ngpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6\nenabled=1\n" >> /etc/yum.repos.d/gazzang.repo
+			fi
+			grep "enabled=0" /etc/yum.repos.d/gazzang.repo &>/dev/null
+			if [[ $? -ne 0 ]]; then
+				printf "Re-enabling Gazzang repositories.\n"
+				sed -i s/enabled=0/enabled=1/ /etc/yum.repos.d/gazzang.repo &>/dev/null
+			fi
+			;;
+		"apt-get" )
+			cat /etc/apt/sources.list | grep "gazzang" &>/dev/null
+			if [[ $? -ne 0 ]]; then
+				printf "Adding Gazzang repository to apt-get's sources list.\n"
+				printf "deb https://archive.gazzang.com/ubuntu/$build_version $codename main\n" >> /etc/apt/sources.list
+				curl -sL https://archive.gazzang.com/gpg_gazzang.asc | apt-key add - &>/dev/null && printf "Gazzang GPG signing key imported.\n" || printf "Could not import Gazzang's GPG signing key. This might cause issues during the install.\n"
+			fi
+			;;
+		* )
+			err "Invalid package manager (check_repositories)."
+			;;
+	esac
+	return 0
+}
+
+# Install zNcrypt prerequisites for the system.
+function install_prerequisites {
+	required_packages=( "make" "perl" "lsof" "haveged" )
+	if [[ $package_manager = "yum" ]]; then
+		check_command="rpm -q"
+		search_command="yum list"
+		refresh_command="yum clean all"
+		required_packages=( ${required_packages[@]} "kernel-devel-$(uname -r)" "kernel-headers-$(uname -r)" )
+	elif [[ $package_manager = "apt-get" ]]; then
+		check_command="dpkg -l"
+		search_command="apt-cache search all"
+		refresh_command="apt-get update"
+		required_packages=( ${required_packages[@]} "linux-headers-$(uname -r)" )
+	else
+		err "Invalid package manager configuration (check_prerequisites)."
+	fi
+	printf "Refreshing package manager listings.\n" && $refresh_command &>/dev/null
+	for package in ${required_packages[@]}; do
+		printf "Checking for package $package.\n"
+		$check_command $package &>/dev/null
+		if [[ $? -ne 0 ]]; then
+			printf "\t- Package $package not installed. Attempting to install with $package_manager.\n"
+			$search_command | grep $package &>/dev/null
+			if [[ $? -ne 0 ]]; then
+				printf "\t- It looks like $package_manager cannot find $package.\n"
+			fi
+			$package_manager install $package -y &>/dev/null
+			if [[ $? -ne 0 ]]; then
+				printf "\t- Could not install $package. Continuing, but this might cause issues later.\n"
+			else
+				printf "\t- Successfully installed.\n"
+			fi
+		else
+			printf "\t- Already installed.\n"
+		fi
+	done
+}
+
+# Install zNcrypt.
+function install_zncrypt {
+	printf "Checking for zncrypt.\n"
+	case "$operating_system" in
+		"centos" | "redhat" | "oracle" )
+			rpm -q zncrypt &>/dev/null && printf "\t- Already installed.\n" && return 0
+			printf "\t- Not present. Installing zNcrypt with yum.\n" && yum install zncrypt -y &>/dev/null || err "zNcrypt could not be installed. Stopping."
+			chkconfig --level 2345 zncrypt-mount on &>/dev/null
+			chkconfig --level 2345 haveged on &>/dev/null
+			;;
+		"ubuntu" | "debian" )
+			dpkg --list | grep zncrypt &>/dev/null && printf "\t- Already installed.\n" && return 0
+			printf "\t- Not present. Installing zNcrypt with apt-get.\n" && apt-get install zncrypt -y &>/dev/null
+			;;
+		"amazon" )
+			rpm -q zncrypt &>/dev/null && printf "\t- Already installed.\n" && return 0
+			# Begin hack
+			printf "\t- Switching to Amazon Linux configuration.\n"
+			printf "\t- Removing cryptsetup* packages.\n" && yum remove cryptsetup* -y &>/dev/null
+			printf "\t- Readding keyutils.\n" && yum install keyutils -y &>/dev/null
+			printf "\t- Re-installing cryptsetup-luks-libs-1.2.0-7.\n" && wget https://s3.amazonaws.com/gazzang-implementation/cryptsetup-luks-libs-1.2.0-7.el6.x86_64.rpm &>/dev/null && rpm -i cryptsetup-luks-libs-1.2.0-7.el6.x86_64.rpm &>/dev/null
+			printf "\t- Re-installing cryptsetup-luks-1.2.0-7.\n" && wget https://s3.amazonaws.com/gazzang-implementation/cryptsetup-luks-1.2.0-7.el6.x86_64.rpm &>/dev/null && rpm -i cryptsetup-luks-1.2.0-7.el6.x86_64.rpm &>/dev/null
+			printf "\t- Re-installing ecryptfs-utils-82-6.el6_1.3.\n" && wget https://s3.amazonaws.com/gazzang-implementation/ecryptfs-utils-82-6.el6_1.3.x86_64.rpm &>/dev/null && rpm -i ecryptfs-utils-82-6.el6_1.3.x86_64.rpm &>/dev/null
+			printf "\t- Re-installing trousers-0.3.4-4.\n" && wget https://s3.amazonaws.com/gazzang-implementation/trousers-0.3.4-4.el6.x86_64.rpm &>/dev/null && rpm -i trousers-0.3.4-4.el6.x86_64.rpm &>/dev/null
+			rm -f *.rpm &>/dev/null
+			# End hack
+			printf "\t- Installing zNcrypt with yum.\n" && yum install zncrypt -y &>/dev/null || err "zNcrypt could not be installed. Stopping."
+			chkconfig --level 2345 zncrypt-mount on &>/dev/null
+			chkconfig --level 2345 haveged on &>/dev/null
+			;;
+		* )
+			err "Invalid package manager (install_zncrypt)."
+			;;
+	esac
+	which zncrypt &>/dev/null || err "zNcrypt could not be installed (install_zncrypt)."
+	return 0
+}
+
+# Disable repositories to prevent unintended upgrades.
+function disable_repositories {
+	case "$operating_system" in
+		"redhat" | "centos" | "oracle" )
+			sed -i s/enabled=1/enabled=0/ /etc/yum.repos.d/gazzang.repo &>/dev/null
+			if [[ $? -ne 0 ]]; then
+				printf "Could not disable Gazzang repositories. Please disable to prevent accidental upgrades.\n" && return 1
+			else
+				printf "Gazzang $package_manager repositories disabled to prevent accidental upgrade.\n" && return 0
+			fi
+			;;
+		"ubuntu" )
+			sed -i '/gazzang/d' /etc/apt/sources.list &>/dev/null
+			if [[ $? -ne 0 ]]; then
+				printf "Could not disable Gazzang repository. Please disable to prevent accidental upgrades.\n" && return 1
+			else
+				printf "Gazzang repository removed from $package_manager sources list.\n" && return 0
+			fi
+			;;
+		* )
+			err "Invalid operating system (disable_repositories)."
+			;;
+	esac
+	return 0
+}
+
+# Remove zncrypt-ping cron job.
+function remove_zncrypt_ping {
+	if [[ -f /etc/cron.hourly/zncrypt-ping ]]; then
+		rm -f /etc/cron.hourly/zncrypt-ping &>/dev/null
+	fi
+}
+
+# Check status of kernel module. If not present, build it.
+function check_zncryptfs {
+	which zncrypt-module-setup &>/dev/null || err "zNcrypt not installed (check_zncryptfs). Stopping."
+	printf "Checking for zNcrypt kernel module.\n" && test -f /var/lib/dkms/zncryptfs/3*/$(uname -r)*/$(uname -i)/module/*.ko
+	if [[ $? -ne 0 ]]; then
+		printf "\t- Not found. Building zNcrypt kernel module.\n" && zncrypt-module-setup
+		if [[ $? -ne 0 ]]; then
+			err "zNcrypt kernel module (zncryptfs) did not build correctly."
+		fi
+	else
+		printf "\t- Already present.\n"
+	fi
+	return 0
+}
+
+# Start the haveged service. This aids in secure key generation during zNcrypt's registration phase.
+function start_haveged {
+	/etc/init.d/haveged start &>/dev/null || printf "Could not start the haveged process. This might dramatically slow down your registration process. Continuing.\n" && return 1
+	printf "Haveged (used for secure key generation) started.\n"
+	return 0
+}
+
+# Stop selinux (if applicable). If you have a requirement on selinux, please contact support@gazzang.com.
+function stop_selinux {
+	which sestatus &>/dev/null || return	
+	printf "Checking current selinux status.\n"
+	sestatus | grep "Current mode:.*enabled" &>/dev/null 
+	if [[ $? -eq 0 ]]; then
+		setenforce 0 &>/dev/null && printf "\t- Currently enabled. Disabling.\n"
+	else
+		printf "\t- Already disabled.\n"
+	fi
+	
+	if [[ -f /etc/selinux/config ]]; then
+		cat /etc/selinux/config | grep SELINUX=enforcing &>/dev/null
+		if [[ $? -eq 0 ]]; then
+			sed -i.before_zncrypt s/SELINUX=enforcing/SELINUX=disabled/ /etc/selinux/config && printf "\t- Modified configuration from enforcing to disabled.\n"
+		fi
+	fi
+}
+
+#####
+# Script meta
+#####
 
 function print_banner {
-    color="\x1b[34m"
-    company_color="\x1b[32m"
-    echo -e "$color                          _                  
- ____ _  __ _ _ _  _ _ __| |_  
+	color="\x1b[34m"
+	company_color="\x1b[32m"
+	echo -e "$color                          _                  
+____ _  __ _ _ _  _ _ __| |_  
 |_ / ' \\/ _| '_| || | '_ \\  _|               
 /__|_||_\\__|_|_ \\_, | .__/\\__|   _ _         
              (_)|__/|_|| |_ __ _| | |___ _ _ 
              | | ' \\(_-<  _/ _\` | | / -_) '_|
              |_|_||_/__/\\__\\__,_|_|_\\___|_|\x1b[0m Powered by$company_color Gazzang, Inc.\x1b[0m
 "
-    echo -e "* Logging enabled, check '\x1b[36m$log_file\x1b[0m' for command output.\n"
+	#echo -e "* Logging enabled, check '\x1b[36m$log_file\x1b[0m' for command output.\n"
 }
-
-function print_error {
-    printf "\x1b[31mError: \x1b[0m$@\n"
-}
-
-function print_warning {
-    printf "\x1b[33mWarning: \x1b[0m$@\n"
-}
-
-function print_info {
-    printf "\x1b[32mInfo: \x1b[0m$@\n"
-}
-
-function execute {
-    local full_redirect="1>>$log_file 2>>$log_file"
-    /bin/bash -c "$@ $full_redirect"
-    ret=$?
-    if [[ $debug = "true" ]]; then
-        if [ $ret -ne 0 ]; then
-            print_warning "Executed command \'$@\', returned non-zero code: $ret"
-        else
-            print_info "Executed command \'$@\', returned successfully."
-        fi
-    fi
-    return $ret
-}
-
-####
-## Functions
-####
 
 function check_for_root {
-    if [[ $UID -ne 0 ]]; then
-        print_error "Please run with super user privileges."
-        exit 1
-    fi
+	test $UID -eq 0 || err "Please rerun with super user (sudo/root) privileges."
+	return 0
 }
 
-function check_prereqs {
-    print_info "Checking your system prerequisites..."
-    case "$package_manager" in
-        yum )
-        execute "rpm -q make"
-        if [[ $? -ne 0 ]]; then
-            print_info "Make is not installed. Attempting to install."
-            execute "yum install make -y"
-            if [[ $? -ne 0 ]]; then
-                print_warning "Could not install make. This may cause issues when compiling the kernel module."
-            fi
-        fi
-        execute "rpm -q perl"
-        if [[ $? -ne 0 ]]; then
-            print_info "Perl is not installed. Attempting to install."
-            execute "yum install perl -y"
-            if [[ $? -ne 0 ]]; then
-                print_warning "Could not install perl. This may cause issues when compiling the kernel module."
-            fi
-        fi
-        execute "rpm -q kernel-devel-$(uname -r)"
-        if [[ $? -ne 0 ]]; then
-            print_info "Kernel-devel for your running kernel is not installed. Attempting to install."
-            execute "yum install kernel-devel-$(uname -r) -y"
-            if [[ $? -ne 0 ]]; then
-                print_warning "Could not install kernel-devel. This may cause issues when compiling the kernel module."
-            fi
-        fi
-        execute "rpm -q kernel-headers-$(uname -r)"
-        if [[ $? -ne 0 ]]; then
-            print_info "Kernel headers for your running kernel is not installed. Attempting to install."
-            execute "yum install kernel-headers-$(uname -r) -y"
-            if [[ $? -ne 0 ]]; then
-                print_warning "Could not install kernel headers. This may cause issues when compiling the kernel module."
-            fi
-        fi
-        execute "rpm -q lsof"
-        if [[ $? -ne 0 ]]; then
-            print_info "The application 'lsof' is not installed. Attempting to install."
-            execute "yum install lsof -y"
-            if [[ $? -ne 0 ]]; then
-                print_warning "Could not install 'lsof'. This may cause issues later."
-            fi
-        fi
-        #execute "cat /etc/yum.conf | grep \"#.*exclude=kernel\""
-        #if [[ $? -eq 0 ]]; then
-        #    print_error "Kernel updates have been disabled in your yum configuration. Please enable, then restart installation."
-        #    exit 1
-        #fi
-        ;;
-        apt )
-        print_info "Updating APT package listings..."
-        execute "apt-get update"
-        execute "dpkg -l | grep make"
-        if [[ $? -ne 0 ]]; then
-            print_warning "Make is not installed. Attempting to install."
-            execute "apt-get install make -y"
-            if [[ $? -ne 0 ]]; then
-                print_warning "Could not install make. This may cause issues when compiling the kernel module."
-            fi
-        fi
-        execute "dpkg -l | grep perl"
-        if [[ $? -ne 0 ]]; then
-            print_warning "Perl is not installed. Attempting to install."
-            execute "yum install perl -y"
-            if [[ $? -ne 0 ]]; then
-                print_warning "Could not install perl. This may cause issues when compiling the kernel module."
-            fi
-        fi
-        execute "dpkg -l | grep linux-headers-$(uname -r)"
-        if [[ $? -ne 0 ]]; then
-            print_warning "Linux headers for your running kernel are not installed. Attempting to install."
-            execute "apt-get install linux-headers-$(uname -r) -y"
-            if [[ $? -ne 0 ]]; then
-                print_warning "Could not install kernel headers. This may cause issues when compiling the kernel module."
-            fi
-        fi
-        ;;
-        * )
-        print_error "Sorry, this package manager is not supported yet."
-        exit 1
-        ;;
-    esac
+function check_script_prerequisites {
+	which curl &>/dev/null || err "The program 'curl' is required for this script to run. Please install before continuing."
+	return 0
 }
 
-function get_system_parameters {
-    check_for_root
-    print_info "Collecting system configuration..."
-    if [[ -f /etc/redhat-release ]]; then
-        if [[ -f /etc/oracle-release ]]; then
-            os="oracle"
-        else
-            os="redhat"
-        fi
-        execute "cat /etc/redhat-release | grep 5\.."
-        if [[ $? -eq 0 ]]; then
-            os_version=5
-        fi
-        execute "cat /etc/redhat-release | grep 6\.."
-        if [ $? -eq 0 ]; then
-            os_version=6
-        fi
-    elif [[ -f /etc/lsb-release ]]; then
-        os="ubuntu"
-        os_codename="$(cat /etc/lsb-release | tr = \ | awk '/CODENAME/ { print $2 }')"
-        if [[ -z $os_codename ]]; then
-            print_error "Sorry, could not determine your Ubuntu codename (ie, precise, etc). Exiting."
-            exit 1
-        fi
-    elif [[ -f /etc/system-release ]]; then
-        execute "grep -i \"amazon\" /etc/system-release"
-        if [[ $? -ne 0 ]]; then
-            print_error "Sorry, this version of Linux is not yet supported."
-            exit 1
-        fi
-        os="amazon"
-        os_version="6"
-    else
-        print_error "Sorry, this version of Linux is not yet supported."
-        exit 1
-    fi
-    
-    if [[ -f /usr/bin/yum ]]; then
-        package_manager="yum"
-    elif [[ -f /usr/bin/apt-get ]]; then
-        package_manager="apt"
-    else
-        print_error "Unsupported package manager. Please contact support@gazzang.com."
-        exit 1
-    fi
-}
 
-function import_key {
-    case "$package_manager" in
-        yum )
-        print_info "Importing Gazzang public key to RPM for package signing verification..."
-        execute "curl -o gpg_gazzang.asc http://archive.gazzang.com/gpg_gazzang.asc"
-        execute "rpm --import gpg_gazzang.asc"
-        if [ $? -ne 0 ]; then
-            print_warning "Could not import the Gazzang public key. This might lead to issues later."
-        fi
-        execute "rm -f gpg_gazzang.asc"
-        ;;
-        apt )
-        print_info "Importing Gazzang public key to APT for package signing verification..."
-        execute "curl -o gpg_gazzang.asc http://archive.gazzang.com/gpg_gazzang.asc"
-        execute "apt-key add gpg_gazzang.asc"
-        if [ $? -ne 0 ]; then
-            print_warning "Could not import the Gazzang public key. This might lead to issues later."
-        fi
-        execute "rm -f gpg_gazzang.asc"
-        ;;
-        * )
-        print_error "Sorry, this package manager is not supported yet."
-        exit 1
-        ;;
-    esac
-}
-
-function add_repo {
-    import_key
-    case "$package_manager" in
-        yum )
-        print_info "Adding Gazzang repository to yum configuration..."
-        if [ ! -f /etc/yum.repos.d/gazzang.repo ]; then
-            if [[ -z $repo_username ]]; then
-                cat <<EOF > /etc/yum.repos.d/gazzang.repo
-[gazzang]
-name=RHEL $os_version - gazzang.com - base
-baseurl=https://archive.gazzang.com/redhat/$repo/$os_version
-enabled=1
-gpgcheck=1
-gpgkey=http://archive.gazzang.com/gpg_gazzang.asc
-EOF
-            else
-                cat <<EOF > /etc/yum.repos.d/gazzang.repo
-[gazzang]
-name=RHEL $os_version - gazzang.com - base
-baseurl=https://$repo_username:$repo_password@archive.gazzang.com/redhat/$repo/$os_version
-enabled=1
-gpgcheck=1
-gpgkey=http://archive.gazzang.com/gpg_gazzang.asc
-EOF
-            fi
-            execute "test -f /etc/yum.repos.d/gazzang.repo"
-            if [ $? -ne 0 ]; then
-                print_warning "Could not add Gazzang repository file. Installation might not succeed."
-            fi
-        fi
-        ;;
-        apt )
-        if [[ -z $os_codename ]]; then
-            print_error "Could not determine OS codename."
-            exit 1
-        fi
-        execute "echo \"deb http://archive.gazzang.com/ubuntu/$repo $os_codename main\" | tee -a /etc/apt/sources.list"
-        ;;
-        * )
-        print_error "Sorry, this package manager is not supported yet."
-        exit 1
-        ;;
-    esac
-}
-
-function start_haveged {
-    print_info "Starting the haveged service for faster key generation..."
-    execute "service haveged start"
-}
-
-function add_epel {
-    execute "ls -la /etc/yum.repos.d/*epel*"
-    if [[ $? -ne 0 ]]; then
-        print_info "Adding the EPEL repository to yum configuration..."
-        if [[ $os_version -eq 5 ]]; then
-            execute "curl -o epel.rpm -L http://download.fedoraproject.org/pub/epel/5/i386/epel-release-5-4.noarch.rpm"
-            execute "rpm -i epel.rpm"
-            execute "rm -f epel.rpm"
-        elif [[ $os_version -eq 6 ]]; then
-            execute "curl -o epel.rpm -L http://download.fedoraproject.org/pub/epel/6/i386/epel-release-6-8.noarch.rpm"
-            execute "rpm -i epel.rpm"
-            execute "rm -f epel.rpm"
-        fi
-    fi
-}
-
-function check_if_installed {
-    print_info "Checking to see if zNcrypt is installed..."
-    case "$package_manager" in
-        yum )
-        execute "rpm -qa | grep zncrypt"
-        return $?
-        ;;
-        apt )
-        execute "dpkg --list | grep zncrypt"
-        return $?
-        ;;
-        *)
-        print_error "This package manager is not supported yet."
-        exit 1
-    esac
-}
-
-function install_amazon {
-    print_info "Switching to Amazon Linux configuration..."
-    execute "yum remove cryptsetup* -y"
-    execute "yum install keyutils -y"
-    execute "wget ftp://ftp.icm.edu.pl/vol/rzm4/linux-centos/6.5/os/x86_64/Packages/cryptsetup-luks-1.2.0-7.el6.x86_64.rpm"
-    execute "wget ftp://ftp.pbone.net/mirror/ftp.scientificlinux.org/linux/scientific/6.1/x86_64/updates/security/ecryptfs-utils-82-6.el6_1.3.x86_64.rpm"
-    execute "wget ftp://ftp.pbone.net/mirror/ftp.scientificlinux.org/linux/scientific/6rolling/x86_64/os/Packages/trousers-0.3.4-4.el6.x86_64.rpm"
-    execute "wget http://mirror.centos.org/centos/6/os/x86_64/Packages/cryptsetup-luks-libs-1.2.0-7.el6.x86_64.rpm"
-    execute "rpm -i cryptsetup-luks-libs-1.2.0-7.el6.x86_64.rpm"
-    execute "rpm -i cryptsetup-luks-1.2.0-7.el6.x86_64.rpm"
-    execute "rpm -i trousers-0.3.4-4.el6.x86_64.rpm"
-    execute "rpm -i ecryptfs-utils-82-6.el6_1.3.x86_64.rpm"
-    execute "rm -f *.rpm"
-}
-
-function install {
-    check_if_installed
-    if [[ $? -eq 0 ]]; then
-        print_info "zNcrypt is already installed. Skipping installation step."
-        return
-    fi
-    add_repo
-    case "$package_manager" in
-        yum )
-        add_epel
-        if [[ "$os" = "amazon" ]]; then
-            install_amazon
-        fi
-        print_info "Installing packages from Gazzang repository..."
-        execute "yum install zncrypt haveged -y"
-        if [[ $? -ne 0 ]]; then
-            print_error "Could not install zNcrypt."
-            exit 1
-        fi
-        ;;
-        apt )
-        print_info "Updating APT package listings..."
-        execute "apt-get update"
-        print_info "Installing packages from Gazzang repository..."
-        execute "apt-get install zncrypt haveged -y"
-        if [[ $? -ne 0 ]]; then
-            print_error "Could not install zNcrypt. Please check error logs."
-            exit 1
-        fi
-        ;;
-        * )
-        print_error "Sorry, this package manager is not supported yet."
-        exit 1
-        ;;
-    esac
-}
-
-function remove_zncrypt_ping {
-    if [ -f /etc/cron.hourly/zncrypt-ping ]; then
-        execute "rm -f /etc/cron.hourly/zncrypt-ping"
-    fi
-}
-
-function check_kernel_module {
-    print_info "Checking for zNcrypt kernel module..."
-    execute "modprobe zncryptfs"
-    if [ $? -ne 0 ]; then
-        print_info "zNcrypt module not loaded. Building module..."
-        execute "zncrypt-module-setup"
-        if [ $? -ne 0 ]; then
-            print_error "Could not compile zncrypt kernel module. Exiting."
-            exit 1
-        fi
-    fi
-}
-
-function stop_selinux {
-    which sestatus &>/dev/null || return
-    status="$(sestatus | awk '/status/ { print $3 }')"
-    if [[ "$status" = "enabled" ]]; then
-        print_info "Stopping current selinux process..."
-        execute "setenforce 0"
-    fi
-    if [[ -f /etc/selinux/config ]]; then
-        print_info "Disabling selinux through configuration..."
-        execute "sed -i.old s/SELINUX=enforcing/SELINUX=disabled/ /etc/selinux/config"
-    fi
-}
-
-function configure {
-    print_info "Configuring zNcrypt..."
-    start_haveged
-    check_kernel_module
-    remove_zncrypt_ping
-    case "$os" in
-        redhat | oracle | amazon )
-        stop_selinux
-        execute "chkconfig --level 235 zncrypt-mount on"
-        execute "chkconfig --level 235 haveged on"
-        ;;
-        ubuntu )
-        return
-        ;;
-        * )
-        print_error "Sorry, this operating system is not supported yet."
-        exit 1
-        ;;
-    esac
-}
-
-####
-## Main
-####
+#####
+# Main function
+#####
 
 function main {
-    print_banner
-    local start_time="$(date +%s)"
-    get_system_parameters
-    check_prereqs
-    install
-    configure
-    local end_time="$(date +%s)"
-    print_info "Done! We took $((end_time - start_time)) seconds in total."
-    echo ""
+	start_time="$(date +%s)"
+	print_banner
+	check_script_prerequisites
+	set_system_parameters
+	check_repositories
+	install_prerequisites || err "System prerequisites could not be installed. Please check log output for more detail."
+	install_zncrypt || err "Could not install zNcrypt. Please check logs for more detail."
+	remove_zncrypt_ping
+	check_zncryptfs
+	start_haveged
+	stop_selinux
+	disable_repositories
+	end_time="$(date +%s)"
 }
 
 main $@
+
+#####
+# Fin
+#####
+
+printf "\nExecution completed (took $(( $end_time - $start_time )) second(s)).\n"
