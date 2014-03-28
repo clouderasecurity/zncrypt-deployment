@@ -348,6 +348,7 @@ function check_for_root {
 }
 
 function check_script_prerequisites {
+	check_for_root
 	which curl &>/dev/null || err "The program 'curl' is required for this script to run. Please install before continuing."
 	return 0
 }
