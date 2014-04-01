@@ -99,7 +99,7 @@ function prepareClient {
     read storage < /dev/tty
     test -z $storage && storage="/var/lib/zncrypt/.private"
     grep "$storage" /etc/zncrypt/ztab &>/dev/null && err "The location '$storage' is already marked as an encrypted partition."
-    test -L $storage && storage="$(ls $storage | xargs readlink -f)" && printf "*You specified a symbolic link. Setting new encryption target to '$storage'.\n"
+    test -L $storage && storage="$(ls $storage | xargs readlink -f)" && printf "*You specified a symbolic link. Setting new storage target to '$storage'.\n"
     test -b $storage && err "Sorry, block-level encryption is not support by this script (yet)."
     test -d $storage || mkdir -p $storage
     
@@ -189,7 +189,7 @@ function addRules {
         printf "\nYou used the category name '$category' before. Would you like to use the same name? [yes]\n"
         read response < /dev/tty
         test -z $response && response="yes"
-        if [[ "${response:0:1}" = "n" ] -o [ "${response:0:1}" = "N" ]]; then
+        if [[ "${response:0:1}" = "n" ]] || [[ "${response:0:1}" = "N" ]]; then
             printf "\nWhat category name would you like to set for this rule? [encrypted]\n"
             read category < /dev/tty
             test -z $category && category="encrypted"
@@ -212,7 +212,7 @@ function addRules {
 function printConclusion {
     printf "\nCompleted!\n"
     printf "We have randomly generated a password for you at '$password_file'. \nThis can (and should) be changed by running the following command:\n"
-    printf "\n\t\$ cat $password_file | zncrypt key --change\n"
+    printf "\n\t\$ zncrypt key --change\n"
     printf "\nWhich will prompt you for your own master password.\n"
 }
 

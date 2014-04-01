@@ -16,8 +16,8 @@
 # limitations under the License.
 #
 # Currently* supported Linux distributions for zNcrypt:
-#   - Ubuntu 12.04+
-#   - Amazon Linux 2013.09+
+#   - Ubuntu 12.04
+#   - Amazon Linux 2013.09
 #   - RHEL/CentOS 5.9+ (untested), 6.x
 #
 # Currently* supported Linux distributions for zTrustee Server:
@@ -196,10 +196,6 @@ function install_prerequisites {
 		$check_command $package &>/dev/null
 		if [[ $? -ne 0 ]]; then
 			printf "\t- Package $package not installed. Attempting to install with $package_manager.\n"
-			$search_command | grep $package &>/dev/null
-			if [[ $? -ne 0 ]]; then
-				printf "\t- It looks like $package_manager cannot find $package.\n"
-			fi
 			$package_manager install $package -y &>/dev/null
 			if [[ $? -ne 0 ]]; then
 				printf "\t- Could not install $package. Continuing, but this might cause issues later.\n"
@@ -253,7 +249,7 @@ function install_zncrypt {
 # Disable repositories to prevent unintended upgrades.
 function disable_repositories {
 	case "$operating_system" in
-		"redhat" | "centos" | "oracle" )
+		"redhat" | "centos" | "oracle" | "amazon" )
 			sed -i s/enabled=1/enabled=0/ /etc/yum.repos.d/gazzang.repo &>/dev/null
 			if [[ $? -ne 0 ]]; then
 				printf "Could not disable Gazzang repositories. Please disable to prevent accidental upgrades.\n" && return 1
@@ -303,6 +299,21 @@ function start_haveged {
 	/etc/init.d/haveged start &>/dev/null || printf "Could not start the haveged process. This might dramatically slow down your registration process. Continuing.\n" && return 1
 	printf "Haveged (used for secure key generation) started.\n"
 	return 0
+}
+
+# Stop apparmor (if applicable). If you have a requirement on apparmor, please contact support@gazzang.com.
+function stop_apparmor {
+	which apparmor_status &>/dev/null || return	
+	printf "Checking current apparmor status.\n"
+	apparmor_status | grep "0 profiles are in enforce mode." &>/dev/null 
+	if [[ $? -ne 0 ]]; then
+		service apparmor stop &>/dev/null && printf "\t- Service stopped.\n"
+		service apparmor teardown &>/dev/null && printf "\t- Process tear-down complete.\n"
+		update-rc.d apparmor disable &>/dev/null && printf "\t- Removed from start-order.\n"
+		printf "\n*If you would like to re-enable apparmor, please contact support@gazzang.com\n\n"
+	else
+		printf "\t- Not running.\n"
+	fi
 }
 
 # Stop selinux (if applicable). If you have a requirement on selinux, please contact support@gazzang.com.
@@ -369,6 +380,7 @@ function main {
 	remove_zncrypt_ping
 	check_zncryptfs
 	start_haveged
+	stop_apparmor
 	stop_selinux
 	disable_repositories
 	end_time="$(date +%s)"
