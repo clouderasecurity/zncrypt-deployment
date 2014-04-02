@@ -15,6 +15,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+#####
+# SUMMARY
+#####
+#
+# This will install the latest version of Datastax Enterprise Cassandra on
+# the current machine, with the recommended DSE system settings enabled. 
+# Please only use for testing purposes.
+#
+# This script comes with no warranty or guarantee. You have been warned.
+#
+# Tested on Amazon Linux 2013.09+, 2014.03 - passing as of April 2nd, 2014
+
+#####
+# TO RUN
+#####
+#
+# Steps to run:
+# 1. Obtain repo credentials for DSE, fill in below (repo* variables)
+# 2. Execute as root on instance
+#
+# Please note, if no other IPs are specified (node_ips, seed_ips, etc.) 
+# then this will setup Cassandra only on this machine.
+
+# datastax repo credentials
+repo_username=""
+repo_password=""
+
 ##########################################################################
 # DO NOT MODIFY BELOW THIS LINE UNLESS YOU KNOW WHAT YOU ARE DOING
 # FOR BUGS, PLEASE NOTIFY SUPPORT@GAZZANG.COM
@@ -36,10 +63,6 @@ run_performance="false"
 
 # binary or packaged, packaged is straight from the DSE repositories (newest version) -- TODO not functional yet
 install_type="packaged"
-
-# datastax repo credentials
-repo_username=""
-repo_password=""
 
 # log files
 stdout_log="./cassandra_install_$(date +%Y%m%d_%H%M%S).out"
@@ -191,7 +214,7 @@ function install_java {
         exit 1
     fi
     print_info "Setting up alternatives..."
-    execute "alternatives --install /usr/bin/java java /usr/java/jdk1.6.0_45/jre/bin/java 20000"
+    execute "alternatives --install /usr/bin/java java /usr/java/jdk1.6.0_45/jre/bin/java 30000"
 }
 
 function check_prereqs {
@@ -271,6 +294,7 @@ function stop_iptables {
 }
 
 function binary_install {
+    # Not recommended
     print_info "Downloading Cassandra packages..."
     execute "wget http://www.gtlib.gatech.edu/pub/apache/cassandra/1.1.12/apache-cassandra-1.1.12-src.tar.gz -O ~/cassandra.tgz"
     print_info "Unpacking..."
