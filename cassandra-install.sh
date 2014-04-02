@@ -240,10 +240,10 @@ function add_repo {
     case "$package_manager" in
         yum )
         print_info "Adding DSE repository to yum configuration..."
-	if [ -z $repo_username ]; then
-		print_error "No DSE repo credentials specified. Please add credentials before continuing."
-		exit 1
-	fi
+    if [ -z $repo_username ]; then
+        print_error "No DSE repo credentials specified. Please add credentials before continuing."
+        exit 1
+    fi
         if [ ! -f /etc/yum.repos.d/dse.repo ]; then
             cat <<EOF > /etc/yum.repos.d/dse.repo
 [datastax]
