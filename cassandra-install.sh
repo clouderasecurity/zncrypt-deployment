@@ -304,13 +304,15 @@ function binary_install {
 function packaged_install {
     print_info "Installing Cassandra packages..."
     ### WARNING, HACK (DSE requires JNA to be installed, which is not available through the Amazon repositories)
-    latest_version="$(yum list | awk '/dse-libcassandra/ { print $2 }')"
+    #latest_version="$(yum list | awk '/dse-libcassandra/ { print $2 }')"
+    # The real latest version 4.0.1-1 (as of April 1st, 2014) is incompatible, pegging to 3.2.5-1 until updates are made
+    latest_version="3.2.5-1"
     execute "curl -O http://rpm.datastax.com/enterprise/noarch/dse-libcassandra-$latest_version.noarch.rpm -u $repo_username:$repo_password"
     execute "rpm -ivh --nodeps dse-libcassandra-$latest_version.noarch.rpm"
     execute "rm -f dse-libcassandra-$latest_version.noarch.rpm"
     ### END HACK, PLEASE RESUME BUSINESS AS NORMAL
     print_info "Installing DSE packages..."
-    execute "yum install dse-full -y"
+    execute "yum install dse-full-$latest_version -y"
     
     print_info "Installing JNA..."
     execute "wget https://maven.java.net/content/repositories/releases/net/java/dev/jna/jna/4.0.0/jna-4.0.0.jar"
