@@ -197,6 +197,7 @@ function install_prerequisites {
 		if [[ $? -ne 0 ]]; then
 			printf "\t- Package $package not installed. Attempting to install with $package_manager.\n"
 			$package_manager install $package -y &>/dev/null
+			$check_command $package &>/dev/null
 			if [[ $? -ne 0 ]]; then
 				printf "\t- Could not install $package. Continuing, but this might cause issues later.\n"
 			else
