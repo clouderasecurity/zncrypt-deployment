@@ -74,7 +74,7 @@ function get_architecture {
 
 # Determine the system Linux distribution.
 function get_distribution {
-    test -f /etc/lsb-release && grep "ubuntu" /etc/lsb-release
+    test -f /etc/lsb-release && grep -i "ubuntu" /etc/lsb-release
 	if [[ $? -eq 0 ]]; then
 		operating_system="ubuntu"
 	elif [[ -f /etc/redhat-release ]]; then
