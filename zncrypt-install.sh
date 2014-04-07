@@ -74,7 +74,8 @@ function get_architecture {
 
 # Determine the system Linux distribution.
 function get_distribution {
-	if [[ -f /etc/lsb-release ]]; then
+    test -f /etc/lsb-release && grep "ubuntu" /etc/lsb-release
+	if [[ $? -eq 0 ]]; then
 		operating_system="ubuntu"
 	elif [[ -f /etc/redhat-release ]]; then
 		if [[ -f /etc/oracle-release ]]; then
@@ -321,7 +322,7 @@ function stop_apparmor {
 function stop_selinux {
 	which sestatus &>/dev/null || return	
 	printf "Checking current selinux status.\n"
-	sestatus | grep "Current mode:.*enabled" &>/dev/null 
+	sestatus | grep "Current mode:.*enforcing" &>/dev/null 
 	if [[ $? -eq 0 ]]; then
 		setenforce 0 &>/dev/null && printf "\t- Currently enabled. Disabling.\n"
 	else
