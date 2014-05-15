@@ -45,7 +45,7 @@ declare repo_password
 
 function err {
     printf "\n\nFATAL -- $@\n\n"
-    cat $log_file
+    test -f $log_file && cat $log_file
     exit 1
 }
 
