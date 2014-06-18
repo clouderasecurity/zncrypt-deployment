@@ -1,7 +1,7 @@
 #!/bin/bash 
 #
-# Author:: Ross McDonald (ross.mcdonald@gazzang.com)
-# Copyright 2014, Gazzang, Inc.
+# Author:: Ross McDonald (ross.mcdonald@cloudera.com)
+# Copyright 2014, Cloudera
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
