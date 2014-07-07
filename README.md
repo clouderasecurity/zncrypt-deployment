@@ -22,7 +22,7 @@ This will attempt to install zNcrypt based on your current environment. This scr
 
 ## Configure
 
-Once zNcrypt is installed, you will need to apply the correct settings in order to encrypt (and access your data).
+Once zNcrypt is installed, you will need to apply the correct settings in order to encrypt (and access) your data.
 
 ### Automated
 
@@ -44,4 +44,4 @@ To get started, copy the following command into a Linux terminal to configure:
 curl -sL https://archive.gazzang.com/deployment/zncrypt-configure.sh | sudo bash
 ```
 
-Which will prompt you for input to register and configure zNcrypt. This script can also be run multiple times without issue.
+Which will prompt you for input to register and configure zNcrypt. This script can also be run multiple times without issue. Please note that this script was designed for very simple deployments, and should not be used for anything too complicated.

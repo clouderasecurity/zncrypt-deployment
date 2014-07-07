@@ -73,7 +73,7 @@ function get_architecture {
 
 # Determine the system Linux distribution.
 function get_distribution {
-    test -f /etc/lsb-release && grep -i "ubuntu" /etc/lsb-release
+    test -f /etc/lsb-release && grep -i "ubuntu" /etc/lsb-release &>/dev/null
     if [[ $? -eq 0 ]]; then
         operating_system="ubuntu"
     elif [[ -f /etc/redhat-release ]]; then
@@ -144,12 +144,12 @@ function check_repositories {
         "yum" )
         if [[ ! -f /etc/yum.repos.d/gazzang.repo ]]; then
             printf "Creating Gazzang repo file.\n"
-            printf "[gazzang]\nname=Gazzang - $operating_system\nbaseurl=https://archive.gazzang.com/redhat/$build_version/${version:0:1}\nenabled=1\ngpgcheck=1\ngpgkey=https://archive.gazzang.com/gpg_gazzang.asc\n" > /etc/yum.repos.d/gazzang.repo
+            printf "[gazzang]\nname=RHEL $build_version - Gazzang\nbaseurl=https://archive.gazzang.com/redhat/$build_version/${version:0:1}\nenabled=1\ngpgcheck=1\ngpgkey=https://archive.gazzang.com/gpg_gazzang.asc\n" > /etc/yum.repos.d/gazzang.repo
             curl -sO https://archive.gazzang.com/gpg_gazzang.asc && rpm --import gpg_gazzang.asc && rm -f gpg_gazzang.asc && printf "Gazzang GPG signing key imported.\n"
         fi
         vault_repo_url="http://vault.centos.org/$version/os/$architecture"
         grep "$vault_repo_url" /etc/yum.repos.d/* &>$log_file
-        if [[ $? -ne 0 ]] && [[ $operating_system = "centos" ]]; then
+        if [[ $? -ne 0 ]] && [[ $operating_system = "centos" ]] && [[ $version != "6.5" ]]; then
             printf "Adding temporary repo for previous releases of CentOS.\n"
             printf "\n[C6.4-base]\nname=CentOS-6.4 - Base\nbaseurl=$vault_repo_url\ngpgcheck=1\ngpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6\nenabled=1\n" >> /etc/yum.repos.d/gazzang.repo
         fi
@@ -352,15 +352,15 @@ function stop_selinux {
 #####
 
 function print_banner {
-    color="\x1b[34m"
-    company_color="\x1b[32m"
+    color="\x1b[32m"
+    company_color="\x1b[34m"
 	echo -e "$color                          _                  
 ____ _  __ _ _ _  _ _ __| |_  
 |_ / ' \\/ _| '_| || | '_ \\  _|               
 /__|_||_\\__|_|_ \\_, | .__/\\__|   _ _         
              (_)|__/|_|| |_ __ _| | |___ _ _ 
              | | ' \\(_-<  _/ _\` | | / -_) '_|
-             |_|_||_/__/\\__\\__,_|_|_\\___|_|\x1b[0m Powered by$company_color Gazzang, Inc.\x1b[0m
+             |_|_||_/__/\\__\\__,_|_|_\\___|_|\x1b[0m Powered by$company_color Cloudera\x1b[0m
 "
 }
 
