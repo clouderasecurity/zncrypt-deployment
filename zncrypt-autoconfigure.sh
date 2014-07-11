@@ -31,15 +31,15 @@ org=""
 auth=""
 
 # Storage and mount locations (can be either an array or string)
-storage=( "/var/lib/zncrypt/.private" )
-mount=( "/var/lib/zncrypt/encrypted" )
+storage=( "/dev/xvdb" "/dev/xvdc" )
+mount=( "/data/encrypted/1" "/data/encrypted/2" )
 
 # Data to encrypt/protect
-to_encrypt=( "/etc/issue" )
+to_encrypt=( "/data/1" "/data/2" )
 
 # ACL categories to set
-category=( "demo" )
-acl_binary=( "/bin/cat" )
+category=( "hadoop" "hadoop" )
+acl_binary=( "/usr/bin/java" "/usr/bin/java" )
 
 # Please note, the last 5 variables listed above correspond 1:1 with eachother.
 # Every array must be of equal length. For example, if you would like to encrypt
@@ -152,12 +152,12 @@ function encryptData {
         if [[ -L ${to_encrypt[$count]} ]]; then
             printf "Skipping encryption of [${to_encrypt[$count]}], as it's already a symbolic link.\n"
         else
+            test -d ${to_encrypt[$count]} || mkdir -p ${to_encrypt[$count]} && printf "Target [${to_encrypt[$count]}] does not exist, creating directory."
             printf "Encrypting target [${to_encrypt[$count]}]\n"
             encrypt_command="zncrypt-move encrypt @${category[$count]} ${to_encrypt[$count]} ${mount[$count]}"
-            #printf "\t- Encryption command being used: $encrypt_command"
             cat $password_file | eval "$encrypt_command"
             if [[ $? -ne 0 ]]; then
-                err "Could not encrypt object '$to_encrypt'. Please check command output for more information."
+                err "Could not encrypt object '${to_encrypt[$count]}'. Please check command output for more information."
             fi
         fi
         let count=$count+1
@@ -175,7 +175,7 @@ function addRules {
             acl_command="zncrypt acl --add -r \"ALLOW @${category[$count]} * ${acl_binary[$count]}\""
             cat $password_file | eval "$acl_command" | tail -n+2
             if [[ $? -ne 0 ]]; then
-                err "Could not add ACL for binary '$binary'. Please check command output for more information."
+                err "Could not add ACL for binary '${acl_binary[$count]}'. Please check command output for more information."
             fi
         fi
         let count=$count+1
