@@ -31,15 +31,15 @@ org=""
 auth=""
 
 # Storage and mount locations (can be either an array or string)
-storage=( "/dev/xvdb" "/dev/xvdc" )
-mount=( "/data/encrypted/1" "/data/encrypted/2" )
+storage=( "/encrypted/.private" )
+mount=( "/encrypted/mnt" )
 
 # Data to encrypt/protect
-to_encrypt=( "/data/1" "/data/2" )
+to_encrypt=( "/etc/issue" )
 
 # ACL categories to set
-category=( "hadoop" "hadoop" )
-acl_binary=( "/usr/bin/java" "/usr/bin/java" )
+category=( "demo" )
+acl_binary=( "/bin/cat" )
 
 # Please note, the last 5 variables listed above correspond 1:1 with eachother.
 # Every array must be of equal length. For example, if you would like to encrypt
@@ -118,7 +118,7 @@ function prepareClient {
 
     local count=0
     while [[ $count -lt ${#storage[@]} ]]; do
-        grep "${storage[$count]}" /etc/zncrypt/ztab &>/dev/null || grep "${mount[$count]}" /etc/zncrypt/ztab &>/dev/null
+        grep "${storage[$count]}\\s" /etc/zncrypt/ztab &>/dev/null || grep "${mount[$count]}\\s" /etc/zncrypt/ztab &>/dev/null
         if [[ $? -ne 0 ]]; then
             printf "Mounting encrypted partition at [${storage[$count]}], storage at [${mount[$count]}]\n"
             test -L ${storage[$count]} && storage="$(ls ${storage[$count]} | xargs readlink -f)" && printf "\t- You specified a symbolic link. Setting new storage target to [${storage[$count]}].\n"
