@@ -178,7 +178,6 @@ function check_repositories {
     return 0
 }
 
-# Install zNcrypt prerequisites for the system.
 function install_prerequisites {
     required_packages=( "haveged" )
     if [[ $package_manager = "yum" ]]; then
@@ -211,7 +210,6 @@ function install_prerequisites {
     done
 }
 
-# Install zNcrypt.
 function install_keytrustee_server {
     printf "Checking for Key Trustee Server.\n"
     case "$operating_system" in
@@ -261,7 +259,6 @@ function disable_repositories {
     return 0
 }
 
-# Start the haveged service. This aids in secure key generation during zNcrypt's registration phase.
 function start_haveged {
     /etc/init.d/haveged start &>$log_file || printf "Could not start the haveged process. This might dramatically slow down your registration process. Continuing.\n" && return 1
     printf "Haveged (used for secure key generation) started.\n"
